@@ -3,3 +3,18 @@ dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# Client documents & working briefs (keep repository clean)
+*.docx
+*.doc
+*.pdf
+*package__generated_content.json
+*Summary.txt
+SEMANTIC_GOOGLE_DOC_TEMPLATE.md
+
+# Ignore all HTML files except index.html
+*.html
+!index.html
+
+# Redundant duplicate bundle in root (public/mammoth.browser.min.js is used)
+/mammoth.browser.min.js

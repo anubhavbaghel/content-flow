@@ -1,38 +1,80 @@
 import { describe, it, expect } from 'vitest';
-import fs from 'fs';
-import path from 'path';
 import ContentParser from '../parser.js';
 
 describe('ContentParser Engine', () => {
   it('correctly parses JSON content packages', () => {
-    const jsonPath = path.resolve(__dirname, '../0017111676_d9e2953f-edc5-406d-b6ed-82806fecf037_package__generated_content.json');
-    if (fs.existsSync(jsonPath)) {
-      const raw = fs.readFileSync(jsonPath, 'utf8');
-      const parsed = ContentParser.parse(raw);
-      expect(parsed.pages.length).toBeGreaterThan(0);
+    const mockJson = {
+      pages: [
+        {
+          PageName: 'Home',
+          AIContent: {
+            meta_data: {
+              heading: 'Home | Acme Web Services',
+              description: 'Professional web design and digital strategy.'
+            },
+            headline: 'Modern Web Solutions for Growing Teams',
+            services_title: 'How we help your company succeed',
+            service_01: {
+              headline: 'Web Design',
+              summary: 'Custom UI/UX responsive designs.',
+              button: 'Explore Design',
+              link: '/web-design'
+            },
+            service_02: {
+              headline: 'Web Development',
+              summary: 'Full-stack performant web applications.',
+              button: 'Explore Dev',
+              link: '/web-development'
+            }
+          }
+        }
+      ],
+      business: {
+        company_name: 'Acme Solutions',
+        telephone: '01892 346007'
+      }
+    };
 
-      const home = parsed.pages.find(p => p.name === 'Home');
-      expect(home).toBeDefined();
-      expect(home.services.length).toBe(6);
-      expect(home.services[0].title).toBe('Chimney sweeping');
-      expect(home.services[0].buttonLink).toBe('/chimney-sweeping');
-      expect(home.servicesTitle).toBe('How we help keep your chimney working safely');
-    }
+    const parsed = ContentParser.parse(JSON.stringify(mockJson));
+    expect(parsed.pages.length).toBe(1);
+
+    const home = parsed.pages.find(p => p.name === 'Home');
+    expect(home).toBeDefined();
+    expect(home.services.length).toBe(2);
+    expect(home.services[0].title).toBe('Web Design');
+    expect(home.services[0].buttonLink).toBe('/web-design');
+    expect(home.servicesTitle).toBe('How we help your company succeed');
   });
 
-  it('correctly parses Google Doc HTML content', () => {
-    const htmlPath = path.resolve(__dirname, '../17111676_Southborough_Sweep_Upgrade.html');
-    if (fs.existsSync(htmlPath)) {
-      const html = fs.readFileSync(htmlPath, 'utf8');
-      const parsed = ContentParser.parse(html);
-      expect(parsed.pages.length).toBeGreaterThan(0);
+  it('correctly parses Google Doc / Word HTML content', () => {
+    const mockHtml = `
+      <table>
+        <tr><td>Company Name: Acme Solutions</td><td>Main Address: 10 High Street, London</td></tr>
+        <tr><td>Phone: 01892 346007</td><td>Email: hello@acme.com</td></tr>
+      </table>
+      <table>
+        <tr><td>Page Title</td><td>Home | Acme Solutions</td></tr>
+        <tr><td>Meta Description</td><td>Clean web solutions.</td></tr>
+        <tr><td>H1</td><td>Reliable web solutions for your business</td></tr>
+      </table>
+      <h2>Our Core Services</h2>
+      <p>Custom software tailored to your requirements.</p>
+      <ul>
+        <li>Fast turnarounds</li>
+        <li>Enterprise security</li>
+      </ul>
+    `;
 
-      const home = parsed.pages.find(p => p.name === 'Home');
-      expect(home).toBeDefined();
-      expect(home.hero.h1).toContain('Chimney services');
-      expect(home.services.length).toBeGreaterThan(0);
-      expect(home.bulletList.items.length).toBeGreaterThan(0);
-    }
+    const parsed = ContentParser.parse(mockHtml);
+    expect(parsed.pages.length).toBeGreaterThan(0);
+
+    const home = parsed.pages.find(p => p.name === 'Home');
+    expect(home).toBeDefined();
+    expect(home.hero.h1).toContain('Reliable web solutions');
+    expect(home.bulletList.items.length).toBe(2);
+    expect(parsed.businessInfo.companyName).toBe('Acme Solutions');
+    expect(parsed.businessInfo.phone).toBe('01892 346007');
+    expect(parsed.businessInfo.phoneLink).toBe('+441892346007');
   });
 
   it('correctly handles plain text briefs', () => {
@@ -50,19 +92,6 @@ H2: Keep your chimney safe
     expect(parsed.pages[0].hero.h1).toBe('Professional Sweeping in Tunbridge Wells');
     expect(parsed.pages[0].mainSection.h2).toBe('Keep your chimney safe');
     expect(parsed.pages[0].bulletList.items).toHaveLength(2);
-  });
-
-  it('correctly parses .docx Word files via mammoth', async () => {
-    const docxPath = path.resolve(__dirname, '../17111676_Southborough_Sweep_Upgrade.docx');
-    if (fs.existsSync(docxPath)) {
-      const mammoth = await import('mammoth');
-      const buffer = fs.readFileSync(docxPath);
-      const res = await mammoth.default.convertToHtml({ buffer });
-      const parsed = ContentParser.parse(res.value);
-      expect(parsed.pages.length).toBeGreaterThan(10);
-      expect(parsed.businessInfo.companyName).toBe('The Southborough Sweep');
-      expect(parsed.businessInfo.phone).toBe('01892 346007');
-    }
   });
 
   it('slugifies titles into clean kebab-case IDs', () => {

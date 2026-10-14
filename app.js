@@ -647,22 +647,10 @@ class ContentFlowApp {
   }
 
   /**
-   * Load Preloaded Workspace Demo Data (with offline embedded fallback)
+   * Load Preloaded Workspace Demo Data
    */
   async loadDemoData() {
-    try {
-      const res = await fetch('17111676_Southborough_Sweep_Upgrade.html');
-      if (res.ok) {
-        const html = await res.text();
-        const parsed = ContentParser.parse(html);
-        this.updateProjectWithDiff(parsed, 'The Southborough Sweep (Sample)');
-        return;
-      }
-    } catch (e) {
-      console.info('Direct fetch unavailable (e.g. file:// protocol), using offline fallback demo');
-    }
-
-    // Embedded fallback demo data for instant readiness
+    // Embedded demo data for instant readiness
     const demo = {
       pages: [
         {
