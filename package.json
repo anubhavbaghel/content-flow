@@ -1,0 +1,25 @@
+{
+  "name": "content-tool",
+  "version": "1.0.0",
+  "description": "> **Solve Copy-Paste Fatigue**: Transform messy Google Docs and JSON files into an interactive, section-by-section, element-by-element **1-Click Copy Dashboard** with **Live Google Docs Sync** for organization-restricted workspaces.",
+  "main": "app.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "mammoth": "^1.13.0"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}

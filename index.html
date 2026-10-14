@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ContentFlow - Developer Copy Tool</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       App Header (Vercel Style)
+       ========================================================================= -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo">CF</div>
+      <div class="brand-text">
+        <h1>ContentFlow <span class="badge-version">v2.0</span></h1>
+        <p id="lastSyncLabel">Ready</p>
+      </div>
+    </div>
+
+    <!-- Live Google Doc URL Sync Bar -->
+    <div class="sync-bar">
+      <input type="url" id="docUrlInput" class="doc-url-input" 
+             placeholder="https://docs.google.com/document/d/..." 
+             title="Paste your Google Doc URL here">
+      
+      <button id="btnSync" class="btn-sync" title="Fetch latest changes from Google Doc">
+        Sync Doc
+      </button>
+
+      <div class="auto-sync-group" title="Automatically poll Google Doc for live changes">
+        <span>Auto:</span>
+        <select id="autoSyncSelect" class="select-compact">
+          <option value="0">Off</option>
+          <option value="15">15s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">1m</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <button id="btnSmartPaste" class="btn-action btn-primary" title="Smart Paste from clipboard (Ctrl+V)">
+        Paste
+      </button>
+      
+      <label class="btn-action" title="Upload .html, .json, .docx, or .txt file" style="cursor: pointer;">
+        Drop File
+        <input type="file" id="fileUploadInput" accept=".html,.json,.txt,.docx" style="display: none;">
+      </label>
+
+      <button id="btnOpenSettings" class="btn-action" title="Configure Google Apps Script">
+        Setup
+      </button>
+
+      <button id="btnThemeToggle" class="btn-action" title="Toggle Theme">
+        <span class="theme-label">Theme</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       App Body (Sidebar + Content Workspace)
+       ========================================================================= -->
+  <div class="app-body">
+    
+    <!-- Sidebar: Page Navigation & Progress -->
+    <aside class="app-sidebar">
+      
+      <!-- Search Filter -->
+      <div class="sidebar-search-box">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search pages, keywords...">
+      </div>
+
+      <!-- Page Copy Progress Tracker -->
+      <div class="progress-card">
+        <div class="progress-header">
+          <span class="progress-title">Page Progress</span>
+          <span id="progressStats" class="progress-stats">0/0</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progressBarFill" class="progress-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Categorized Pages Tree -->
+      <nav id="sidebarNavContainer" class="sidebar-nav-container">
+        <!-- Rendered by app.js -->
+      </nav>
+
+      <!-- Quick Business Data Drawer -->
+      <div class="quick-business-drawer">
+        <div class="drawer-header">
+          <span>Business Info</span>
+          <span style="font-size: 9px; color: var(--text-muted);">Click to copy</span>
+        </div>
+        <div id="quickChipsContainer" class="quick-chips-grid">
+          <!-- Rendered by app.js -->
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Main Content Workspace -->
+    <main class="app-main">
+      
+      <!-- Workspace Page Header -->
+      <div class="page-workspace-header">
+        <div class="page-title-area">
+          <h2>
+            <span id="activePageTitle">Loading</span>
+            <span id="activePageTypeTag" class="page-type-tag">Page</span>
+          </h2>
+          <p id="activePageSubtitle">SEO & Structure</p>
+        </div>
+
+        <div class="workspace-actions">
+          <button id="btnResetPageCopied" class="btn-action" title="Reset all copied checkmarks for this page">
+            Reset
+          </button>
+          <button id="btnCopyAllPage" class="btn-action btn-primary" title="Copy all text from this page in Markdown">
+            Copy Page
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Cards Feed -->
+      <div id="pageCardsContainer" class="page-cards-container">
+        <!-- Dynamic Cards rendered by app.js -->
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Toast Feedback System -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3>Settings & Org Script</h3>
+        <button class="btn-close-modal">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Google Apps Script Web App URL</label>
+          <input type="url" id="scriptUrlInput" class="form-input" 
+                 placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono);">
+            Endpoint for live organization document synchronization.
+          </p>
+        </div>
+
+        <div style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin-top: 12px;">
+          <h4 style="color: var(--text-primary); font-size: 12px; font-weight: 600; margin-bottom: 6px; font-family: var(--font-mono);">
+            Setup Instructions:
+          </h4>
+          <ol style="margin-left: 16px; line-height: 1.6; font-size: 11.5px; color: var(--text-secondary);">
+            <li>Open <a href="https://script.google.com/home/start" target="_blank" style="color: var(--text-primary); text-decoration: underline;">script.google.com</a> in your account.</li>
+            <li>Copy code from <code>google_apps_script.js</code> into the editor.</li>
+            <li>Run <code>authorize</code> once, then click <strong>Deploy &gt; Manage deployments &gt; New version</strong>.</li>
+            <li>Set <em>Execute as:</em> <strong>Me</strong> and <em>Who has access:</em> <strong>Anyone</strong>.</li>
+            <li>Paste the URL above and save.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-action btn-close-modal">Cancel</button>
+        <button id="btnSaveSettings" class="btn-sync">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="mammoth.browser.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
