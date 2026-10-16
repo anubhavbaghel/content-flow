@@ -103,6 +103,11 @@ class ContentFlowApp {
       this.saveSettings();
     });
 
+    // Copy Google Apps Script Code Button
+    document.getElementById('btnCopyScriptCode')?.addEventListener('click', (e) => {
+      this.copyGoogleAppsScriptCode(e.currentTarget);
+    });
+
     // Close Modal Buttons
     document.querySelectorAll('.btn-close-modal, .modal-backdrop').forEach(el => {
       el.addEventListener('click', (e) => {
@@ -844,28 +849,98 @@ class ContentFlowApp {
   }
 
   /**
-   * Floating Toast Notifications
+   * Copy Google Apps Script source code to clipboard
    */
-  showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
+  copyGoogleAppsScriptCode(buttonEl) {
+    const code = `/**
+ * =========================================================================
+ * ContentFlow - Complete Google Apps Script Web App Code
+ * =========================================================================
+ * 
+ * 1. Paste this entire file into Code.gs at script.google.com
+ * 2. Select 'authorize' in the top dropdown and click '▶ Run' to authorize.
+ * 3. Click 'Deploy' > 'Manage deployments' > Edit > 'New version' > Deploy.
+ */
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    
-    let icon = 'ℹ️';
-    if (type === 'success') icon = '✅';
-    if (type === 'warning') icon = '⚠️';
+// Function to trigger Google's one-time permission popup
+function authorize() {
+  var token = ScriptApp.getOAuthToken();
+  Logger.log("Authorization completed successfully! Token acquired: " + (token ? "YES" : "NO"));
+}
 
-    toast.innerHTML = `<span>${icon}</span> <span>${this.escapeHTML(message)}</span>`;
-    container.appendChild(toast);
+function doGet(e) {
+  try {
+    var params = e ? e.parameter : {};
+    var callback = params.callback;
+    var docUrl = params.docUrl || params.url;
+    var docId = params.docId || params.id;
 
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(10px)';
-      toast.style.transition = 'all 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 2800);
+    if (!docId && docUrl) {
+      var match = docUrl.match(/\\/document\\/d\\/([a-zA-Z0-9-_]+)/);
+      docId = match ? match[1] : null;
+    }
+
+    if (!docId) {
+      return respond({ success: false, error: "Missing document URL or ID" }, callback);
+    }
+
+    // Export Google Doc as HTML using authorized export stream
+    var exportUrl = "https://docs.google.com/document/d/" + docId + "/export?format=html";
+    var response = UrlFetchApp.fetch(exportUrl, {
+      headers: {
+        Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      },
+      muteHttpExceptions: true
+    });
+
+    var statusCode = response.getResponseCode();
+    if (statusCode !== 200) {
+      return respond({
+        success: false,
+        error: "Google Docs returned HTTP " + statusCode + ". Ensure the Google Doc ID is correct and you have view access."
+      }, callback);
+    }
+
+    var htmlContent = response.getContentText();
+
+    return respond({
+      success: true,
+      title: "Google Doc",
+      html: htmlContent
+    }, callback);
+
+  } catch (err) {
+    return respond({ success: false, error: err.toString() }, callback);
+  }
+}
+
+function doPost(e) {
+  return doGet(e);
+}
+
+function respond(data, callback) {
+  var json = JSON.stringify(data);
+  if (callback) {
+    return ContentService.createTextOutput(callback + '(' + json + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+    navigator.clipboard.writeText(code).then(() => {
+      if (buttonEl) {
+        const originalText = buttonEl.textContent;
+        buttonEl.textContent = 'Copied!';
+        setTimeout(() => {
+          buttonEl.textContent = originalText;
+        }, 2000);
+      }
+      this.showToast('Apps Script code copied! Paste it into script.google.com', 'success');
+    }).catch(err => {
+      console.error('Clipboard copy error:', err);
+      this.showToast('Failed to copy code to clipboard', 'warning');
+    });
   }
 
   /**

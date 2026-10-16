@@ -162,15 +162,21 @@
         </div>
 
         <div style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin-top: 12px;">
-          <h4 style="color: var(--text-primary); font-size: 12px; font-weight: 600; margin-bottom: 6px; font-family: var(--font-mono);">
-            Setup Instructions:
-          </h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h4 style="color: var(--text-primary); font-size: 12px; font-weight: 600; font-family: var(--font-mono); margin: 0;">
+              Setup Instructions:
+            </h4>
+            <button id="btnCopyScriptCode" class="btn-action" style="font-size: 11px; padding: 4px 8px;" title="Copy complete Google Apps Script code to clipboard">
+              Copy Script Code
+            </button>
+          </div>
           <ol style="margin-left: 16px; line-height: 1.6; font-size: 11.5px; color: var(--text-secondary);">
+            <li>Click <strong>Copy Script Code</strong> above (or view <code>google_apps_script.js</code>).</li>
             <li>Open <a href="https://script.google.com/home/start" target="_blank" style="color: var(--text-primary); text-decoration: underline;">script.google.com</a> in your account.</li>
-            <li>Copy code from <code>google_apps_script.js</code> into the editor.</li>
-            <li>Run <code>authorize</code> once, then click <strong>Deploy &gt; Manage deployments &gt; New version</strong>.</li>
-            <li>Set <em>Execute as:</em> <strong>Me</strong> and <em>Who has access:</em> <strong>Anyone</strong>.</li>
-            <li>Paste the URL above and save.</li>
+            <li>Paste into <code>Code.gs</code>, select <code>authorize</code> in the toolbar and click <strong>▶ Run</strong> once.</li>
+            <li>Click <strong>Deploy &gt; Manage deployments &gt; New version</strong>.</li>
+            <li>Set <em>Execute as:</em> <strong>Me</strong> and <em>Who has access:</em> <strong>Anyone</strong> (or within organization).</li>
+            <li>Paste the generated Web App URL above and click <strong>Save</strong>.</li>
           </ol>
         </div>
       </div>
