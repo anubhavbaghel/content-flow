@@ -30,7 +30,7 @@ class ContentFlowApp {
     // 1. Load saved theme
     document.documentElement.setAttribute('data-theme', this.state.theme);
 
-    // 2. Load saved copied and modified items
+    // 2. Load saved copied, modified items, and saved project
     try {
       const savedCopied = localStorage.getItem('cf_copied_ids');
       if (savedCopied) {
@@ -39,6 +39,10 @@ class ContentFlowApp {
       const savedModified = localStorage.getItem('cf_modified_ids');
       if (savedModified) {
         this.state.modifiedIds = new Set(JSON.parse(savedModified));
+      }
+      const savedProject = localStorage.getItem('cf_saved_project');
+      if (savedProject) {
+        this.state.project = JSON.parse(savedProject);
       }
     } catch (e) {
       console.warn('Failed to load state', e);
@@ -58,8 +62,8 @@ class ContentFlowApp {
       scriptInput.value = this.state.scriptUrl;
     }
 
-    // 5. Check if local demo data is available, load default sample
-    this.loadDemoData();
+    // 5. Render clean initial state (or restored project)
+    this.render();
   }
 
   bindEvents() {
@@ -124,9 +128,14 @@ class ContentFlowApp {
       }
     });
 
-    // Reset Copied Progress for Active Page
+    // Clear Project / Reset Dashboard Button
+    document.getElementById('btnClearProject')?.addEventListener('click', () => {
+      this.clearProject();
+    });
+
+    // Reset Copied Progress for Active Page / Project
     document.getElementById('btnResetPageCopied')?.addEventListener('click', () => {
-      this.resetActivePageCopied();
+      this.resetCopiedProgress();
     });
 
     // Copy Entire Page as Markdown / Text
@@ -134,15 +143,32 @@ class ContentFlowApp {
       this.copyEntireActivePage();
     });
 
-    // Safe Event Delegation for Cards (Click & Enter/Space Key)
+    // Safe Event Delegation for Cards & Empty State Actions
     const pageCardsContainer = document.getElementById('pageCardsContainer');
     pageCardsContainer?.addEventListener('click', (e) => {
+      // Empty state action buttons
+      if (e.target.closest('#btnEmptyPaste')) {
+        this.handleSmartPaste();
+        return;
+      }
+      if (e.target.closest('#btnEmptyDemo')) {
+        this.loadDemoData();
+        return;
+      }
+
       const card = e.target.closest('.copy-card, .bullet-item-card');
       if (!card) return;
       const elId = card.getAttribute('data-element-id');
       const item = this.cardTextRegistry.get(elId);
       if (item) {
         this.copyText(item.text, elId, item.label, e);
+      }
+    });
+
+    // Empty state file upload listener
+    pageCardsContainer?.addEventListener('change', (e) => {
+      if (e.target.id === 'emptyFileInput' && e.target.files?.[0]) {
+        this.loadFile(e.target.files[0]);
       }
     });
 
@@ -399,6 +425,12 @@ class ContentFlowApp {
     this.saveModifiedState();
     this.saveCopiedState();
 
+    try {
+      localStorage.setItem('cf_saved_project', JSON.stringify(newProject));
+    } catch (e) {
+      console.warn('Could not persist project to localStorage', e);
+    }
+
     if (revisedCopiedCount > 0) {
       this.showToast(`Updated: ${revisedCopiedCount} previously copied item(s) modified in Google Doc`, 'warning');
     } else if (newModifiedCount > 0) {
@@ -554,22 +586,74 @@ class ContentFlowApp {
   }
 
   /**
-   * Reset copied state for current page
+   * Reset the entire dashboard and unload the document
    */
-  resetActivePageCopied() {
-    const page = this.getActivePage();
-    if (!page) return;
+  clearProject() {
+    if (!this.state.project) {
+      this.showToast('Workspace is already empty', 'info');
+      return;
+    }
 
-    const prefix = page.id + '-';
+    this.state.project = null;
+    this.state.activePageIndex = 0;
+    this.state.copiedIds.clear();
+    this.state.modifiedIds.clear();
+    this.state.searchQuery = '';
+    this.cardTextRegistry.clear();
+
+    localStorage.removeItem('cf_saved_project');
+    localStorage.removeItem('cf_copied_ids');
+    localStorage.removeItem('cf_modified_ids');
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = '';
+
+    const lastSyncLabel = document.getElementById('lastSyncLabel');
+    if (lastSyncLabel) lastSyncLabel.textContent = 'Ready';
+
+    this.render();
+    this.showToast('Workspace cleared. Default state restored.', 'info');
+  }
+
+  /**
+   * Reset copied state for current page or all pages
+   */
+  resetCopiedProgress() {
+    if (!this.state.project) {
+      this.showToast('No document loaded', 'info');
+      return;
+    }
+
+    const page = this.getActivePage();
+    const prefix = page ? (page.id + '-') : '';
+    let removedOnPage = 0;
+
     Array.from(this.state.copiedIds).forEach(id => {
-      if (id.startsWith(prefix)) {
+      if (prefix && id.startsWith(prefix)) {
         this.state.copiedIds.delete(id);
+        removedOnPage++;
       }
     });
 
-    this.saveCopiedState();
-    this.render();
-    this.showToast(`Reset copy progress for ${page.name}`, 'info');
+    if (removedOnPage > 0) {
+      this.saveCopiedState();
+      this.render();
+      this.showToast(`Reset copy progress for ${page.name} (${removedOnPage} item${removedOnPage > 1 ? 's' : ''})`, 'info');
+      return;
+    }
+
+    // If active page had 0 copied items, but other pages have copied items, reset all!
+    if (this.state.copiedIds.size > 0) {
+      const total = this.state.copiedIds.size;
+      this.state.copiedIds.clear();
+      this.saveCopiedState();
+      this.render();
+      this.showToast(`Reset all copy progress across the project (${total} item${total > 1 ? 's' : ''})`, 'info');
+      return;
+    }
+
+    // If nothing was copied anywhere
+    this.showToast('Copy progress is already 0. To unload the document, click "Clear" in the top bar.', 'info');
   }
 
   /**
@@ -812,7 +896,12 @@ class ContentFlowApp {
     if (!container) return;
 
     if (!this.state.project || !this.state.project.pages || this.state.project.pages.length === 0) {
-      container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 12px;">No pages loaded</div>`;
+      container.innerHTML = `
+        <div class="sidebar-empty-state">
+          <div class="sidebar-empty-title">0 Pages Loaded</div>
+          <p class="sidebar-empty-text">Pages will appear here once you paste or drop a document.</p>
+        </div>
+      `;
       return;
     }
 
@@ -911,19 +1000,57 @@ class ContentFlowApp {
     if (!container) return;
 
     const page = this.getActivePage();
+    const btnReset = document.getElementById('btnResetPageCopied');
+    const btnCopyAll = document.getElementById('btnCopyAllPage');
+
     if (!page) {
+      if (headerTitle) headerTitle.textContent = 'Workspace Ready';
+      if (pageTypeTag) pageTypeTag.textContent = 'No Document';
+      if (pageSubtitle) pageSubtitle.textContent = 'Paste or drop content to begin extracting 1-click copy elements';
+
+      if (btnReset) btnReset.disabled = true;
+      if (btnCopyAll) btnCopyAll.disabled = true;
+
       container.innerHTML = `
         <div class="empty-state-view">
-          <div class="empty-title">No Document Loaded</div>
-          <div class="empty-subtitle">Paste a Google Doc URL above or drop a file to extract copy.</div>
+          <div class="empty-badge">Ready for Input</div>
+          <h2 class="empty-title">No Document Loaded</h2>
+          <p class="empty-subtitle">
+            Paste your Google Doc with <kbd>Ctrl+V</kbd> or drop a file anywhere to generate interactive 1-click copy cards.
+          </p>
           <div class="empty-actions-row">
-            <button class="btn-sync" onclick="app.loadDemoData()">Load Sample</button>
-            <button class="btn-action" onclick="app.handleSmartPaste()">Paste from Clipboard</button>
+            <button id="btnEmptyPaste" class="btn-action btn-primary" type="button">
+              Paste from Clipboard (Ctrl+V)
+            </button>
+            <label class="btn-action" style="cursor: pointer;">
+              Drop File
+              <input type="file" id="emptyFileInput" accept=".html,.json,.txt,.docx" style="display: none;">
+            </label>
+            <button id="btnEmptyDemo" class="btn-action" type="button">
+              Explore Sample Project
+            </button>
+          </div>
+          <div class="empty-features-grid">
+            <div class="empty-feature-card">
+              <div class="feature-title">1-Click Instant Copy</div>
+              <div class="feature-desc">Headlines, paragraphs, links, and bullet points copied to clipboard in 1 click.</div>
+            </div>
+            <div class="empty-feature-card">
+              <div class="feature-title">Smart Categorization</div>
+              <div class="feature-desc">Automatically sorts Main Pages, Services, and Regional Locations.</div>
+            </div>
+            <div class="empty-feature-card">
+              <div class="feature-title">Quick Business Drawer</div>
+              <div class="feature-desc">1-click access to company phone, click-to-dial links, email, and socials.</div>
+            </div>
           </div>
         </div>
       `;
       return;
     }
+
+    if (btnReset) btnReset.disabled = false;
+    if (btnCopyAll) btnCopyAll.disabled = false;
 
     if (headerTitle) headerTitle.textContent = page.name;
     if (pageTypeTag) pageTypeTag.textContent = page.type;
@@ -1194,7 +1321,7 @@ class ContentFlowApp {
     }
 
     if (items.length === 0) {
-      container.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); padding: 6px;">No business info detected</div>`;
+      container.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); padding: 8px 12px; font-family: var(--font-mono); line-height: 1.5;">No business info detected. Contact details appear here once loaded.</div>`;
       return;
     }
 
@@ -1217,6 +1344,12 @@ class ContentFlowApp {
     const fillEl = document.getElementById('progressBarFill');
     const statsEl = document.getElementById('progressStats');
     if (!fillEl || !statsEl) return;
+
+    if (!this.state.project) {
+      fillEl.style.width = '0%';
+      statsEl.textContent = '0/0 (0%)';
+      return;
+    }
 
     const totalElements = document.querySelectorAll('.copy-card, .bullet-item-card').length;
     const copiedOnPage = document.querySelectorAll('.copy-card.copied, .bullet-item-card.copied').length;
@@ -1269,4 +1402,5 @@ class ContentFlowApp {
 let app;
 window.addEventListener('DOMContentLoaded', () => {
   app = new ContentFlowApp();
+  window.app = app;
 });

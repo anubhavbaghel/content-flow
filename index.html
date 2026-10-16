@@ -52,6 +52,10 @@
         <input type="file" id="fileUploadInput" accept=".html,.json,.txt,.docx" style="display: none;">
       </label>
 
+      <button id="btnClearProject" class="btn-action" title="Clear current document and reset workspace">
+        Clear
+      </button>
+
       <button id="btnOpenSettings" class="btn-action" title="Configure Google Apps Script">
         Setup
       </button>
@@ -118,8 +122,8 @@
         </div>
 
         <div class="workspace-actions">
-          <button id="btnResetPageCopied" class="btn-action" title="Reset all copied checkmarks for this page">
-            Reset
+          <button id="btnResetPageCopied" class="btn-action" title="Reset copy progress for this page or whole project">
+            Reset Progress
           </button>
           <button id="btnCopyAllPage" class="btn-action btn-primary" title="Copy all text from this page in Markdown">
             Copy Page
